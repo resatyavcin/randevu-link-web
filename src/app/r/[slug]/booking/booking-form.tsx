@@ -1,0 +1,471 @@
+"use client";
+
+import * as React from "react";
+import { format } from "date-fns";
+import {
+  Building2,
+  ChevronLeft,
+  ChevronRight,
+  Loader2Icon,
+} from "lucide-react";
+import { toast } from "sonner";
+
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { cn } from "@/lib/utils";
+import type {
+  AvailableSlot,
+  CompanyResponse,
+  EmployeeResponse,
+  ServiceResponse,
+} from "@/lib/types";
+
+import {
+  API,
+  normalizeEmployee,
+  normalizeService,
+  readErrorMessage,
+  TOTAL_STEPS,
+  unwrapApiList,
+} from "@/app/r/[slug]/booking/shared";
+import { StepContact } from "@/app/r/[slug]/booking/step-contact";
+import { StepDateTime } from "@/app/r/[slug]/booking/step-datetime";
+import { StepEmployeeService } from "@/app/r/[slug]/booking/step-employee-service";
+import { StepProgress } from "@/app/r/[slug]/booking/step-progress";
+
+function CompanyCardHeaderBanner({
+  headerImgUrl,
+  companyName,
+}: {
+  headerImgUrl: string | null;
+  companyName: string;
+}) {
+  const [broken, setBroken] = React.useState(false);
+  const src = headerImgUrl?.trim() ?? "";
+  const showImg = src.length > 0 && !broken;
+
+  return (
+    <div className="relative isolate h-32 w-full shrink-0 overflow-hidden">
+      {showImg ? (
+        <img
+          src={src}
+          alt={`${companyName} kapak görseli`}
+          className="size-full object-cover"
+          onError={() => setBroken(true)}
+        />
+      ) : (
+        <>
+          <div
+            className="absolute inset-0 bg-linear-to-br from-[#5b4fd9] via-[#8b5cf6] to-[#c084fc] dark:from-[#4338ca] dark:via-[#6366f1] dark:to-[#06b6d4]"
+            aria-hidden
+          />
+          <div
+            className="absolute -top-10 left-[8%] size-44 rounded-full bg-[#fde68a]/45 blur-3xl dark:bg-[#a5b4fc]/30"
+            aria-hidden
+          />
+          <div
+            className="absolute top-6 -right-8 size-48 rounded-full bg-[#f9a8d4]/50 blur-3xl dark:bg-[#22d3ee]/25"
+            aria-hidden
+          />
+          <div
+            className="absolute bottom-[-20%] left-[35%] size-40 rounded-full bg-white/35 blur-2xl dark:bg-[#818cf8]/20"
+            aria-hidden
+          />
+        </>
+      )}
+      <div
+        className="absolute inset-0 bg-linear-to-t from-card/90 via-card/20 to-transparent dark:from-card/95"
+        aria-hidden
+      />
+    </div>
+  );
+}
+
+function CompanyBookingLogo({
+  logoUrl,
+  companyName,
+  className,
+}: {
+  logoUrl: string | null;
+  companyName: string;
+  className?: string;
+}) {
+  const [broken, setBroken] = React.useState(false);
+  const src = logoUrl?.trim() ?? "";
+  const showImg = src.length > 0 && !broken;
+
+  return (
+    <div
+      className={cn(
+        "flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border/50 bg-muted/50",
+        showImg ? "shadow-xs" : "",
+        className,
+      )}
+    >
+      {showImg ? (
+        <img
+          src={src}
+          alt={`${companyName} logosu`}
+          className="size-full object-cover"
+          onError={() => setBroken(true)}
+        />
+      ) : (
+        <Building2
+          className="size-9 text-muted-foreground"
+          strokeWidth={1.25}
+          aria-hidden
+        />
+      )}
+    </div>
+  );
+}
+
+export function BookingForm({ company }: { company: CompanyResponse }) {
+  const [step, setStep] = React.useState(1);
+
+  const [employees, setEmployees] = React.useState<EmployeeResponse[]>([]);
+  const [services, setServices] = React.useState<ServiceResponse[]>([]);
+  const [loadingCatalog, setLoadingCatalog] = React.useState(true);
+
+  const [employeeId, setEmployeeId] = React.useState<string>("");
+  const [serviceId, setServiceId] = React.useState<string>("");
+  const [date, setDate] = React.useState<Date | undefined>(() => new Date());
+  const [calendarOpen, setCalendarOpen] = React.useState(false);
+
+  const [slots, setSlots] = React.useState<AvailableSlot[]>([]);
+  const [loadingSlots, setLoadingSlots] = React.useState(false);
+  const [selectedSlot, setSelectedSlot] = React.useState<AvailableSlot | null>(
+    null,
+  );
+
+  const [customerName, setCustomerName] = React.useState("");
+  const [customerPhone, setCustomerPhone] = React.useState("");
+  const [customerEmail, setCustomerEmail] = React.useState("");
+  const [campaignCode, setCampaignCode] = React.useState("");
+  const [notes, setNotes] = React.useState("");
+
+  const [submitting, setSubmitting] = React.useState(false);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoadingCatalog(true);
+      try {
+        const [empRes, svcRes] = await Promise.all([
+          fetch(`${API}/companies/${company.id}/employees`),
+          fetch(`${API}/companies/${company.id}/services`),
+        ]);
+        if (!empRes.ok) throw new Error(await readErrorMessage(empRes));
+        if (!svcRes.ok) throw new Error(await readErrorMessage(svcRes));
+        const empJson = unwrapApiList<unknown>(await empRes.json())
+          .map(normalizeEmployee)
+          .filter((e): e is EmployeeResponse => e != null && e.active);
+        const svcJson = unwrapApiList<unknown>(await svcRes.json())
+          .map(normalizeService)
+          .filter((s): s is ServiceResponse => s != null && s.active);
+        if (!cancelled) {
+          setEmployees(empJson);
+          setServices(svcJson);
+        }
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Veriler yüklenemedi");
+      } finally {
+        if (!cancelled) setLoadingCatalog(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [company.id]);
+
+  const selectedEmployee = employees.find((e) => e.id === employeeId);
+  const selectedService = services.find((s) => s.id === serviceId);
+
+  const servicesForEmployee = React.useMemo(() => {
+    if (!selectedEmployee) return [];
+    const activeSvcs = services.filter((s) => s.active);
+    const ids = selectedEmployee.serviceIds;
+    if (ids?.length) {
+      const set = new Set(ids);
+      return activeSvcs.filter((s) => set.has(s.id));
+    }
+    return activeSvcs;
+  }, [selectedEmployee, services]);
+
+  React.useEffect(() => {
+    setServiceId("");
+    setSelectedSlot(null);
+    setSlots([]);
+  }, [employeeId]);
+
+  React.useEffect(() => {
+    setSelectedSlot(null);
+  }, [serviceId, date]);
+
+  React.useEffect(() => {
+    if (!employeeId || !serviceId || !date || !selectedService) {
+      setSlots([]);
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      setLoadingSlots(true);
+      try {
+        const dateStr = format(date, "yyyy-MM-dd");
+        const url = `${API}/companies/${company.id}/employees/${employeeId}/available-slots?date=${encodeURIComponent(dateStr)}&durationMinutes=${selectedService.durationMinutes}`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(await readErrorMessage(res));
+        const list = unwrapApiList<AvailableSlot>(await res.json());
+        if (!cancelled) setSlots(list);
+      } catch (e) {
+        if (!cancelled) {
+          setSlots([]);
+          toast.error(
+            e instanceof Error ? e.message : "Müsait saatler alınamadı",
+          );
+        }
+      } finally {
+        if (!cancelled) setLoadingSlots(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [company.id, employeeId, serviceId, date, selectedService]);
+
+  function goNext() {
+    if (step === 1) {
+      if (!employeeId || !serviceId) {
+        toast.error("Çalışan ve hizmet seçin.");
+        return;
+      }
+      if (servicesForEmployee.length === 0) {
+        toast.error("Bu çalışana atanmış hizmet yok.");
+        return;
+      }
+      setStep(2);
+      return;
+    }
+    if (step === 2) {
+      if (!date) {
+        toast.error("Tarih seçin.");
+        return;
+      }
+      if (!selectedSlot) {
+        toast.error("Bir saat seçin.");
+        return;
+      }
+      setStep(3);
+    }
+  }
+
+  function goBack() {
+    setStep((s) => Math.max(1, s - 1));
+  }
+
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!selectedService || !employeeId || !serviceId || !selectedSlot) {
+      toast.error("Çalışan, hizmet, tarih ve saat seçin.");
+      return;
+    }
+    const name = customerName.trim();
+    const phone = customerPhone.trim();
+    if (!name || !phone) {
+      toast.error("Ad soyad ve telefon zorunludur.");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const emailTrim = customerEmail.trim();
+      const body = {
+        companyId: company.id,
+        employeeId,
+        serviceId,
+        customerName: name,
+        customerPhone: phone,
+        customerEmail: emailTrim.length > 0 ? emailTrim : null,
+        startTime: selectedSlot.startTime,
+        campaignCode: campaignCode.trim() || null,
+        notes: notes.trim() || null,
+      };
+
+      const res = await fetch(`${API}/appointments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      if (!res.ok) throw new Error(await readErrorMessage(res));
+
+      toast.success("Randevunuz oluşturuldu.");
+      setStep(1);
+      setCustomerName("");
+      setCustomerPhone("");
+      setCustomerEmail("");
+      setCampaignCode("");
+      setNotes("");
+      setSelectedSlot(null);
+      setEmployeeId("");
+      setServiceId("");
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Randevu oluşturulamadı",
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  const selectableSlots = slots.filter((s) => s.selectable);
+
+  return (
+    <Card className="gap-0 overflow-hidden p-0">
+      <div className="relative flex w-full flex-col">
+        <CompanyCardHeaderBanner
+          headerImgUrl={company.headerImgUrl}
+          companyName={company.name}
+        />
+        <div className="relative z-10 -mt-9 flex w-full justify-start px-4">
+          <CompanyBookingLogo
+            logoUrl={company.logoUrl}
+            companyName={company.name}
+            className="ring-4 ring-card shadow-md"
+          />
+        </div>
+      </div>
+      <CardHeader className="items-stretch space-y-2 border-0 px-4 pt-3 text-left">
+        <div className="w-full space-y-2">
+          <CardTitle className="text-xl">{company.name}</CardTitle>
+          <CardDescription>
+            {company.description ??
+              "Adımları takip ederek randevunuzu oluşturun."}
+          </CardDescription>
+          {(company.phone ?? company.address) ? (
+            <div className="text-muted-foreground text-xs leading-relaxed">
+              {company.phone ? <p>Tel: {company.phone}</p> : null}
+              {company.address ? <p>{company.address}</p> : null}
+            </div>
+          ) : null}
+        </div>
+      </CardHeader>
+      <CardContent className="pb-6 pt-2">
+        {loadingCatalog ? (
+          <div className="flex items-center gap-2 text-muted-foreground text-sm">
+            <Loader2Icon className="size-4 animate-spin" />
+            Yükleniyor…
+          </div>
+        ) : (
+          <form className="flex flex-col gap-6" onSubmit={onSubmit}>
+            <StepProgress step={step} />
+
+            {step === 1 && (
+              <StepEmployeeService
+                employees={employees}
+                servicesForEmployee={servicesForEmployee}
+                employeeId={employeeId}
+                serviceId={serviceId}
+                onEmployeeIdChange={setEmployeeId}
+                onServiceIdChange={setServiceId}
+              />
+            )}
+
+            {step === 2 && (
+              <StepDateTime
+                employeeId={employeeId}
+                serviceId={serviceId}
+                date={date}
+                onDateChange={setDate}
+                calendarOpen={calendarOpen}
+                onCalendarOpenChange={setCalendarOpen}
+                loadingSlots={loadingSlots}
+                selectableSlots={selectableSlots}
+                selectedSlot={selectedSlot}
+                onSelectSlot={setSelectedSlot}
+              />
+            )}
+
+            {step === 3 && (
+              <StepContact
+                customerName={customerName}
+                customerPhone={customerPhone}
+                customerEmail={customerEmail}
+                campaignCode={campaignCode}
+                notes={notes}
+                onCustomerNameChange={setCustomerName}
+                onCustomerPhoneChange={setCustomerPhone}
+                onCustomerEmailChange={setCustomerEmail}
+                onCampaignCodeChange={setCampaignCode}
+                onNotesChange={setNotes}
+              />
+            )}
+
+            <div
+              className={cn(
+                "flex gap-3",
+                step > 1 ? "flex-col sm:flex-row sm:items-stretch" : "flex-col",
+              )}
+            >
+              {step > 1 ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="default"
+                  className="h-10 w-full gap-1.5 text-sm sm:w-auto sm:min-w-32 sm:shrink-0"
+                  onClick={goBack}
+                  disabled={submitting}
+                >
+                  <ChevronLeft className="size-4" />
+                  Geri
+                </Button>
+              ) : null}
+
+              {step < TOTAL_STEPS ? (
+                <Button
+                  type="button"
+                  size="default"
+                  className={cn(
+                    "h-10 w-full gap-1.5 text-sm font-semibold",
+                    step > 1 && "sm:min-h-10 sm:flex-1",
+                  )}
+                  onClick={goNext}
+                >
+                  İleri
+                  <ChevronRight className="size-4" />
+                </Button>
+              ) : (
+                <Button
+                  type="submit"
+                  size="default"
+                  className={cn(
+                    "h-10 w-full gap-1.5 text-sm font-semibold",
+                    step > 1 && "sm:min-h-10 sm:flex-1",
+                  )}
+                  disabled={submitting}
+                >
+                  {submitting ? (
+                    <>
+                      <Loader2Icon className="size-4 animate-spin" />
+                      Gönderiliyor…
+                    </>
+                  ) : (
+                    "Randevu oluştur"
+                  )}
+                </Button>
+              )}
+            </div>
+          </form>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
