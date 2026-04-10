@@ -1,46 +1,35 @@
 import Link from "next/link";
-import { Building2 } from "lucide-react";
+import { CalendarX2 } from "lucide-react";
 
-import {
-  Empty,
-  EmptyContent,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@/components/ui/empty";
+import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-
-/** Primary buton görünümü — client `buttonVariants` kullanılmıyor (SSR uyumu) */
-const primaryLinkClass = cn(
-  "inline-flex h-11 w-full min-w-0 items-center justify-center rounded-lg px-4 text-sm font-medium",
-  "bg-primary text-primary-foreground transition-colors",
-  "hover:bg-primary/90",
-  "focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
-  "outline-none select-none",
-);
 
 export default function NotFound() {
   return (
-    <div className="flex min-h-[60vh] flex-col items-center justify-center px-4 py-12">
-      <Empty className="max-w-md border-none bg-transparent">
-        <EmptyHeader>
-          <EmptyMedia variant="icon">
-            <Building2 className="size-5" />
-          </EmptyMedia>
-          <EmptyTitle className="text-lg font-semibold tracking-tight">
+    <div className="flex min-h-[70vh] flex-col items-center justify-center px-4 py-16">
+      <div className="flex w-full max-w-sm flex-col items-center gap-8 text-center">
+
+        <div className="flex size-20 items-center justify-center rounded-2xl bg-muted">
+          <CalendarX2 className="size-9 text-muted-foreground" />
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <h1 className="text-xl font-semibold tracking-tight">
             İşletme bulunamadı
-          </EmptyTitle>
-          <EmptyDescription>
-            Bu adrese ait bir kayıt yok veya işletme artık aktif değil.
-          </EmptyDescription>
-        </EmptyHeader>
-        <EmptyContent className="w-full max-w-sm">
-          <Link href="/" className={primaryLinkClass}>
-            Ana sayfa
-          </Link>
-        </EmptyContent>
-      </Empty>
+          </h1>
+          <p className="text-sm text-balance text-muted-foreground">
+            Bu bağlantıya ait bir işletme yok veya randevu almaya kapalı.
+          </p>
+        </div>
+
+        <Link
+          href="/"
+          className={cn(buttonVariants({ variant: "default" }), "h-11 w-full px-4")}
+        >
+          Ana sayfaya dön
+        </Link>
+
+      </div>
     </div>
   );
 }
