@@ -14,8 +14,12 @@ export const STEP_TITLES = [
 export const fieldClass =
   "h-10 w-full rounded-lg border border-input bg-transparent px-3 text-sm shadow-xs outline-none md:text-sm";
 
+/**
+ * Yükseklik/padding; yazı boyutu Input’taki `text-base md:text-sm` kalsın — aksi halde
+ * burada `text-sm` verilince iOS Safari odakta otomatik zoom tetiklenir.
+ */
 export const inputClass = cn(
-  "h-10 min-h-10 px-3 text-sm md:text-sm",
+  "h-10 min-h-10 px-3",
   "placeholder:text-muted-foreground",
 );
 

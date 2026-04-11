@@ -22,6 +22,22 @@ export const metadata: Metadata = {
   description: "İşletme randevu linki ile online randevu alın.",
 };
 
+/** İlk boyamadan önce çalışır: OS koyu/açık tercihi veya kayıtlı tema (flash önleme). */
+const themeInitScript = `
+(function(){
+try{
+var k="theme";
+var s=localStorage.getItem(k);
+var m=window.matchMedia("(prefers-color-scheme: dark)").matches;
+var r=s==="light"||s==="dark"?s:(s==="system"||!s)?(m?"dark":"light"):"light";
+var d=document.documentElement;
+d.classList.remove("light","dark");
+d.classList.add(r);
+d.style.colorScheme=r;
+}catch(e){}
+})();
+`.trim();
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -34,6 +50,10 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col bg-background text-foreground">
+        <script
+          dangerouslySetInnerHTML={{ __html: themeInitScript }}
+          suppressHydrationWarning
+        />
         <ThemeProvider>
           <SiteHeader />
           <div className="flex min-h-0 flex-1 flex-col">{children}</div>

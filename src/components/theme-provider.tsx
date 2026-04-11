@@ -47,6 +47,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const resolved = stored === "system" ? getSystemTheme() : stored;
     setThemeState(stored);
     setResolvedTheme(resolved);
+    applyTheme(resolved);
 
     const mq = window.matchMedia(DARK_MQ);
     const onMqChange = (e: MediaQueryListEvent) => {
