@@ -2,11 +2,7 @@ import { format, isBefore, startOfDay } from "date-fns";
 import { tr } from "date-fns/locale";
 import { CalendarIcon, CalendarX2, Info, Loader2Icon } from "lucide-react";
 
-import {
-  Alert,
-  AlertDescription,
-  AlertTitle,
-} from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Label } from "@/components/ui/label";
@@ -56,9 +52,7 @@ export function StepDateTime({
             )}
           >
             <CalendarIcon className="mr-2 size-4 shrink-0" />
-            {date
-              ? format(date, "d MMMM yyyy", { locale: tr })
-              : "Tarih seçin"}
+            {date ? format(date, "d MMMM yyyy", { locale: tr }) : "Tarih seçin"}
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">
             <Calendar
@@ -69,9 +63,7 @@ export function StepDateTime({
                 onCalendarOpenChange(false);
               }}
               locale={tr}
-              disabled={(d) =>
-                isBefore(startOfDay(d), startOfDay(new Date()))
-              }
+              disabled={(d) => isBefore(startOfDay(d), startOfDay(new Date()))}
               captionLayout="dropdown"
             />
           </PopoverContent>
