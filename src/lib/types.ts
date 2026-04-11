@@ -91,6 +91,7 @@ export type AppointmentResponse = {
   id: string;
   companyId: string;
   customerName: string;
+  customerPhoneNumber: string;
   startTime: string;
   endTime: string;
   status: string;

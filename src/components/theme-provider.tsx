@@ -14,7 +14,9 @@ interface ThemeContextValue {
   setTheme: (theme: Theme) => void;
 }
 
-const ThemeContext = React.createContext<ThemeContextValue | undefined>(undefined);
+const ThemeContext = React.createContext<ThemeContextValue | undefined>(
+  undefined,
+);
 
 function getSystemTheme(): ResolvedTheme {
   return window.matchMedia(DARK_MQ).matches ? "dark" : "light";
@@ -37,7 +39,8 @@ function applyTheme(resolved: ResolvedTheme) {
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = React.useState<Theme>("system");
-  const [resolvedTheme, setResolvedTheme] = React.useState<ResolvedTheme>("light");
+  const [resolvedTheme, setResolvedTheme] =
+    React.useState<ResolvedTheme>("light");
 
   React.useEffect(() => {
     const stored = readStoredTheme();
@@ -64,7 +67,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     // Disable transitions briefly to prevent flicker
     const style = document.createElement("style");
     style.appendChild(
-      document.createTextNode("*,*::before,*::after{transition:none!important}"),
+      document.createTextNode(
+        "*,*::before,*::after{transition:none!important}",
+      ),
     );
     document.head.appendChild(style);
 
@@ -84,7 +89,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     [theme, resolvedTheme, setTheme],
   );
 
-  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
+  return (
+    <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
+  );
 }
 
 export function useTheme(): ThemeContextValue {

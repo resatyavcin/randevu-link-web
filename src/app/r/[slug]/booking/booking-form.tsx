@@ -1,11 +1,13 @@
 "use client";
 
 import * as React from "react";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
+import { tr } from "date-fns/locale";
 import {
   Building2,
   ChevronLeft,
   ChevronRight,
+  CircleCheck,
   Loader2Icon,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -18,6 +20,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { fireBookingConfetti } from "@/lib/booking-confetti";
 import { cn } from "@/lib/utils";
 import type {
   AvailableSlot,
@@ -126,6 +129,136 @@ function CompanyBookingLogo({
   );
 }
 
+type BookingSuccessSummary = {
+  serviceName: string;
+  employeeName: string;
+  startTime: string;
+  endTime: string;
+  customerName: string;
+  customerPhone: string;
+  customerEmail: string | null;
+  campaignCode: string | null;
+  notes: string | null;
+};
+
+function formatSlotSummary(startIso: string, endIso: string): string {
+  const start = parseISO(startIso);
+  const end = parseISO(endIso);
+  return `${format(start, "d MMMM yyyy", { locale: tr })} · ${format(start, "HH:mm")}–${format(end, "HH:mm")}`;
+}
+
+function summaryRow(
+  label: string,
+  value: string,
+  options?: { breakAll?: boolean; preLine?: boolean },
+) {
+  return (
+    <div className="flex flex-col gap-0.5 border-border/50 border-b py-2.5 last:border-b-0 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4 sm:py-2.5">
+      <dt className="text-muted-foreground text-xs font-medium tracking-wide">
+        {label}
+      </dt>
+      <dd
+        className={cn(
+          "text-right font-medium text-sm sm:text-end",
+          options?.breakAll && "break-all",
+          options?.preLine && "whitespace-pre-line",
+        )}
+      >
+        {value}
+      </dd>
+    </div>
+  );
+}
+
+function BookingSuccessPanel({
+  company,
+  summary,
+  onNewBooking,
+}: {
+  company: CompanyResponse;
+  summary: BookingSuccessSummary;
+  onNewBooking: () => void;
+}) {
+  const desc = (company.description ?? "").trim();
+  const phone = (company.phone ?? "").trim();
+  const address = (company.address ?? "").trim();
+
+  return (
+    <div
+      className="mx-auto flex w-full max-w-md flex-col gap-8 py-2"
+      role="status"
+      aria-live="polite"
+    >
+      <span className="sr-only">Randevu kaydı başarılı.</span>
+      <div className="flex justify-center">
+        <CircleCheck
+          className="size-16 shrink-0 text-emerald-600 dark:text-emerald-400"
+          strokeWidth={1.75}
+          aria-hidden
+        />
+      </div>
+
+      <div className="space-y-8">
+        <section className="text-left">
+          <h3 className="mb-3 font-semibold text-foreground text-sm">
+            Randevu bilgileri
+          </h3>
+          <dl>
+            {summaryRow(
+              "Tarih ve saat",
+              formatSlotSummary(summary.startTime, summary.endTime),
+            )}
+            {summaryRow("Hizmet", summary.serviceName)}
+            {summaryRow("Uzman", summary.employeeName)}
+            {summaryRow("Ad soyad", summary.customerName)}
+            {summaryRow("Telefon", summary.customerPhone)}
+            {summary.customerEmail
+              ? summaryRow("E-posta", summary.customerEmail, {
+                  breakAll: true,
+                })
+              : null}
+            {summary.campaignCode
+              ? summaryRow("Kampanya kodu", summary.campaignCode)
+              : null}
+            {summary.notes
+              ? summaryRow("Not", summary.notes, { breakAll: true })
+              : null}
+          </dl>
+        </section>
+
+        <section className="text-left">
+          <h3 className="mb-3 font-semibold text-foreground text-sm">
+            İşletme bilgileri
+          </h3>
+          <dl>
+            {summaryRow("Ad", company.name)}
+            {desc.length > 0
+              ? summaryRow("Açıklama", desc, { breakAll: true })
+              : null}
+            {phone.length > 0 ? summaryRow("Tel", phone) : null}
+            {address.length > 0
+              ? summaryRow("Adres", address, {
+                  breakAll: true,
+                  preLine: true,
+                })
+              : null}
+          </dl>
+        </section>
+      </div>
+
+      <Button
+        type="button"
+        variant="default"
+        size="default"
+        className="h-10 w-full text-sm font-semibold"
+        onClick={onNewBooking}
+      >
+        Yeni randevu
+      </Button>
+    </div>
+  );
+}
+
 export function BookingForm({ company }: { company: CompanyResponse }) {
   const [step, setStep] = React.useState(1);
 
@@ -151,6 +284,13 @@ export function BookingForm({ company }: { company: CompanyResponse }) {
   const [notes, setNotes] = React.useState("");
 
   const [submitting, setSubmitting] = React.useState(false);
+  const [successSummary, setSuccessSummary] =
+    React.useState<BookingSuccessSummary | null>(null);
+
+  React.useEffect(() => {
+    if (successSummary == null) return;
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [successSummary]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -292,7 +432,7 @@ export function BookingForm({ company }: { company: CompanyResponse }) {
         employeeId,
         serviceId,
         customerName: name,
-        customerPhone: phone,
+        customerPhoneNumber: phone,
         customerEmail: emailTrim.length > 0 ? emailTrim : null,
         startTime: selectedSlot.startTime,
         campaignCode: campaignCode.trim() || null,
@@ -307,7 +447,25 @@ export function BookingForm({ company }: { company: CompanyResponse }) {
 
       if (!res.ok) throw new Error(await readErrorMessage(res));
 
-      toast.success("Randevunuz oluşturuldu.");
+      if (!selectedEmployee) {
+        throw new Error("Çalışan bilgisi bulunamadı.");
+      }
+
+      const summary: BookingSuccessSummary = {
+        serviceName: selectedService.name,
+        employeeName:
+          `${selectedEmployee.firstName} ${selectedEmployee.lastName}`.trim(),
+        startTime: selectedSlot.startTime,
+        endTime: selectedSlot.endTime,
+        customerName: name,
+        customerPhone: phone,
+        customerEmail: emailTrim.length > 0 ? emailTrim : null,
+        campaignCode: campaignCode.trim() || null,
+        notes: notes.trim() || null,
+      };
+
+      fireBookingConfetti();
+      setSuccessSummary(summary);
       setStep(1);
       setCustomerName("");
       setCustomerPhone("");
@@ -328,42 +486,60 @@ export function BookingForm({ company }: { company: CompanyResponse }) {
 
   const selectableSlots = slots.filter((s) => s.selectable);
 
+  function clearSuccessAndReset() {
+    setSuccessSummary(null);
+  }
+
+  const showSuccess = successSummary != null;
+
   return (
     <Card className="gap-0 overflow-hidden p-0">
-      <div className="relative flex w-full flex-col">
-        <CompanyCardHeaderBanner
-          headerImgUrl={company.headerImgUrl}
-          companyName={company.name}
-        />
-        <div className="relative z-10 -mt-9 flex w-full justify-start px-4">
-          <CompanyBookingLogo
-            logoUrl={company.logoUrl}
-            companyName={company.name}
-            className="ring-4 ring-card shadow-md"
-          />
-        </div>
-      </div>
-      <CardHeader className="items-stretch space-y-2 border-0 px-4 pt-3 text-left">
-        <div className="w-full space-y-2">
-          <CardTitle className="text-xl">{company.name}</CardTitle>
-          <CardDescription>
-            {company.description ??
-              "Adımları takip ederek randevunuzu oluşturun."}
-          </CardDescription>
-          {(company.phone ?? company.address) ? (
-            <div className="text-muted-foreground text-xs leading-relaxed">
-              {company.phone ? <p>Tel: {company.phone}</p> : null}
-              {company.address ? <p>{company.address}</p> : null}
+      {!showSuccess ? (
+        <>
+          <div className="relative flex w-full flex-col">
+            <CompanyCardHeaderBanner
+              headerImgUrl={company.headerImgUrl}
+              companyName={company.name}
+            />
+            <div className="relative z-10 -mt-9 flex w-full justify-start px-4">
+              <CompanyBookingLogo
+                logoUrl={company.logoUrl}
+                companyName={company.name}
+                className="ring-4 ring-card shadow-md"
+              />
             </div>
-          ) : null}
-        </div>
-      </CardHeader>
-      <CardContent className="pb-6 pt-2">
+          </div>
+          <CardHeader className="items-stretch space-y-2 border-0 px-4 pt-3 text-left">
+            <div className="w-full space-y-2">
+              <CardTitle className="text-xl">{company.name}</CardTitle>
+              <CardDescription>
+                {company.description ??
+                  "Adımları takip ederek randevunuzu oluşturun."}
+              </CardDescription>
+              {(company.phone ?? company.address) ? (
+                <div className="text-muted-foreground text-xs leading-relaxed">
+                  {company.phone ? <p>Tel: {company.phone}</p> : null}
+                  {company.address ? <p>{company.address}</p> : null}
+                </div>
+              ) : null}
+            </div>
+          </CardHeader>
+        </>
+      ) : null}
+      <CardContent
+        className={cn("px-4 pb-6", showSuccess ? "pt-8 sm:pt-10" : "pt-2")}
+      >
         {loadingCatalog ? (
           <div className="flex items-center gap-2 text-muted-foreground text-sm">
             <Loader2Icon className="size-4 animate-spin" />
             Yükleniyor…
           </div>
+        ) : showSuccess && successSummary ? (
+          <BookingSuccessPanel
+            company={company}
+            summary={successSummary}
+            onNewBooking={clearSuccessAndReset}
+          />
         ) : (
           <form className="flex flex-col gap-6" onSubmit={onSubmit}>
             <StepProgress step={step} />
