@@ -8,10 +8,17 @@ import {
   ChevronLeft,
   ChevronRight,
   CircleCheck,
+  ListX,
   Loader2Icon,
+  UsersRound,
 } from "lucide-react";
 import { toast } from "sonner";
 
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -544,7 +551,31 @@ export function BookingForm({ company }: { company: CompanyResponse }) {
           <form className="flex flex-col gap-6" onSubmit={onSubmit}>
             <StepProgress step={step} />
 
-            {step === 1 && (
+            {!loadingCatalog && employees.length === 0 ? (
+              <Alert variant="warning" role="status" aria-live="polite">
+                <UsersRound />
+                <AlertTitle>Randevu için uygun çalışan yok</AlertTitle>
+                <AlertDescription>
+                  Bu işletmede şu an listelenen çalışan bulunmuyor. Daha sonra
+                  tekrar deneyin veya işletmeyle doğrudan iletişime geçin.
+                </AlertDescription>
+              </Alert>
+            ) : null}
+
+            {!loadingCatalog &&
+            employees.length > 0 &&
+            services.length === 0 ? (
+              <Alert variant="warning" role="status" aria-live="polite">
+                <ListX />
+                <AlertTitle>Aktif hizmet tanımı yok</AlertTitle>
+                <AlertDescription>
+                  Randevu alabilmek için işletmede en az bir aktif hizmet
+                  gerekiyor. İşletmeyle iletişime geçebilirsiniz.
+                </AlertDescription>
+              </Alert>
+            ) : null}
+
+            {step === 1 && employees.length > 0 ? (
               <StepEmployeeService
                 employees={employees}
                 servicesForEmployee={servicesForEmployee}
@@ -553,7 +584,7 @@ export function BookingForm({ company }: { company: CompanyResponse }) {
                 onEmployeeIdChange={setEmployeeId}
                 onServiceIdChange={setServiceId}
               />
-            )}
+            ) : null}
 
             {step === 2 && (
               <StepDateTime
@@ -588,7 +619,9 @@ export function BookingForm({ company }: { company: CompanyResponse }) {
             <div
               className={cn(
                 "flex gap-3",
-                step > 1 ? "flex-col sm:flex-row sm:items-stretch" : "flex-col",
+                step > 1
+                  ? "flex-col-reverse sm:flex-row sm:items-stretch"
+                  : "flex-col",
               )}
             >
               {step > 1 ? (
@@ -614,6 +647,10 @@ export function BookingForm({ company }: { company: CompanyResponse }) {
                     step > 1 && "sm:min-h-10 sm:flex-1",
                   )}
                   onClick={goNext}
+                  disabled={
+                    step === 1 &&
+                    (employees.length === 0 || services.length === 0)
+                  }
                 >
                   İleri
                   <ChevronRight className="size-4" />

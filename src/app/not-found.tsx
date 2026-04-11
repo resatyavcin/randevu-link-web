@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 
 export default function NotFound() {
   return (
-    <div className="flex min-h-[70vh] flex-col items-center justify-center bg-background px-4 py-16">
+    <div className="flex min-h-[70dvh] w-full flex-1 flex-col items-center justify-center bg-background px-4 py-16">
       <div className="flex w-full max-w-sm flex-col items-center gap-8 text-center">
         <div className="flex size-20 items-center justify-center rounded-2xl bg-muted">
           <FileQuestion className="size-9 text-muted-foreground" />

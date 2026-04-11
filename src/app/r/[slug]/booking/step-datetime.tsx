@@ -1,7 +1,12 @@
 import { format, isBefore, startOfDay } from "date-fns";
 import { tr } from "date-fns/locale";
-import { CalendarIcon, Loader2Icon } from "lucide-react";
+import { CalendarIcon, CalendarX2, Info, Loader2Icon } from "lucide-react";
 
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from "@/components/ui/alert";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Label } from "@/components/ui/label";
@@ -76,16 +81,33 @@ export function StepDateTime({
       <div className="grid gap-2">
         <Label className="text-sm font-medium">Müsait saatler</Label>
         {loadingSlots ? (
-          <div className="flex items-center gap-2 text-muted-foreground text-sm">
-            <Loader2Icon className="size-4 animate-spin" />
-            Saatler yükleniyor…
-          </div>
+          <Alert variant="default" role="status" aria-live="polite">
+            <Loader2Icon className="animate-spin text-muted-foreground" />
+            <AlertTitle>Saatler yükleniyor…</AlertTitle>
+          </Alert>
         ) : selectableSlots.length === 0 ? (
-          <p className="text-muted-foreground text-sm">
-            {employeeId && serviceId && date
-              ? "Seçilen gün için uygun saat bulunamadı."
-              : "Önce bir önceki adımda çalışan ve hizmet seçin."}
-          </p>
+          employeeId && serviceId && date ? (
+            <Alert variant="warning" role="status" aria-live="polite">
+              <CalendarX2 />
+              <AlertTitle>Bu tarih için listelenen müsait saat yok</AlertTitle>
+              <AlertDescription>
+                <span className="font-semibold">
+                  {format(date, "d MMMM yyyy", { locale: tr })}
+                </span>{" "}
+                seçili. Takvimden başka bir gün seçerek tekrar deneyin; hâlâ
+                slot çıkmıyorsa işletmeyle iletişime geçin.
+              </AlertDescription>
+            </Alert>
+          ) : (
+            <Alert variant="default" role="status" aria-live="polite">
+              <Info />
+              <AlertTitle>Saatleri göstermek için önce seçim yapın</AlertTitle>
+              <AlertDescription>
+                1. adımda çalışan ve hizmeti seçtikten sonra burada gün
+                seçebilirsiniz; ardından müsait saatler listelenir.
+              </AlertDescription>
+            </Alert>
+          )
         ) : (
           <div className="flex flex-wrap gap-2">
             {selectableSlots.map((slot) => {

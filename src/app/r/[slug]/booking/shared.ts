@@ -81,7 +81,9 @@ export function normalizeEmployee(raw: unknown): EmployeeResponse | null {
     o.assigned_service_ids;
   let serviceIds: string[] = [];
   if (Array.isArray(serviceIdsRaw)) {
-    serviceIds = serviceIdsRaw.filter((x): x is string => typeof x === "string");
+    serviceIds = serviceIdsRaw.filter(
+      (x): x is string => typeof x === "string",
+    );
   }
 
   const active = o.active ?? o.is_active ?? o.isActive;
@@ -115,8 +117,7 @@ export function normalizeService(raw: unknown): ServiceResponse | null {
   const durNum =
     typeof duration === "number" ? duration : Number(duration) || 0;
   const priceRaw = o.price;
-  const price =
-    typeof priceRaw === "number" ? priceRaw : Number(priceRaw) || 0;
+  const price = typeof priceRaw === "number" ? priceRaw : Number(priceRaw) || 0;
 
   const active = o.active ?? o.is_active ?? o.isActive;
   const activeBool = typeof active === "boolean" ? active : active !== false;

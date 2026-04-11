@@ -1,3 +1,10 @@
+import { Briefcase } from "lucide-react";
+
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from "@/components/ui/alert";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import type { EmployeeResponse, ServiceResponse } from "@/lib/types";
@@ -76,9 +83,13 @@ export function StepEmployeeService({
           ))}
         </select>
         {employeeId && servicesForEmployee.length === 0 ? (
-          <p className="text-muted-foreground text-sm">
-            Bu çalışana atanmış aktif hizmet yok.
-          </p>
+          <Alert variant="warning" role="status" aria-live="polite">
+            <Briefcase />
+            <AlertTitle>Bu çalışan için atanmış aktif hizmet yok</AlertTitle>
+            <AlertDescription>
+              Listeden başka bir çalışan seçin veya işletmeyle iletişime geçin.
+            </AlertDescription>
+          </Alert>
         ) : null}
       </div>
     </div>
