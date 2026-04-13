@@ -23,6 +23,26 @@ export const inputClass = cn(
   "placeholder:text-muted-foreground",
 );
 
+/** Randevu formu: sabit ülke kodu; ulusal kısım 10 hane (cep: 5 ile başlar). */
+export const TR_PHONE_PREFIX = "+90" as const;
+
+/** Sadece rakamlar; baştaki 0 kaldırılır; en fazla 10 hane. */
+export function normalizeTrPhoneNationalInput(raw: string): string {
+  let d = raw.replace(/\D/g, "");
+  if (d.startsWith("0")) d = d.slice(1);
+  if (d.startsWith("90")) d = d.slice(2);
+  return d.slice(0, 10);
+}
+
+export function buildTrCustomerPhone(nationalDigits: string): string {
+  return `${TR_PHONE_PREFIX}${normalizeTrPhoneNationalInput(nationalDigits)}`;
+}
+
+/** E.164 benzeri: +90 ve ardından 10 haneli cep (5XXXXXXXXX). */
+export function isValidTrMobileE164(full: string): boolean {
+  return /^\+905\d{9}$/.test(full);
+}
+
 export function employeeLabel(e: EmployeeResponse): string {
   return `${e.firstName} ${e.lastName}`.trim();
 }
@@ -34,11 +54,34 @@ export function formatPrice(amount: number, currency: string): string {
   }).format(amount);
 }
 
+type ApiErrorJson = {
+  message?: string;
+  error?:
+    | string
+    | {
+        errors?: Record<string, string> | null;
+        status?: number;
+      };
+};
+
+/** API (randevu-link-api) `ApiErrorResponse` + `ErrorResponse.errors` alan hatalarını okur. */
 export async function readErrorMessage(res: Response): Promise<string> {
   const text = await res.text();
   try {
-    const j = JSON.parse(text) as { message?: string; error?: string };
-    return j.message ?? j.error ?? text;
+    const j = JSON.parse(text) as ApiErrorJson;
+    const base =
+      j.message ?? (typeof j.error === "string" ? j.error : undefined) ?? text;
+    const nested = j.error;
+    if (nested && typeof nested === "object" && nested.errors) {
+      const entries = Object.entries(nested.errors).filter(
+        ([, v]) => typeof v === "string" && v.length > 0,
+      );
+      if (entries.length > 0) {
+        const detail = entries.map(([k, v]) => `${k}: ${v}`).join(" · ");
+        return `${base} (${detail})`;
+      }
+    }
+    return base || res.statusText;
   } catch {
     return text || res.statusText;
   }

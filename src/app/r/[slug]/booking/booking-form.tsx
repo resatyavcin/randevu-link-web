@@ -38,6 +38,8 @@ import type {
 
 import {
   API,
+  buildTrCustomerPhone,
+  isValidTrMobileE164,
   normalizeEmployee,
   normalizeService,
   readErrorMessage,
@@ -142,9 +144,8 @@ type BookingSuccessSummary = {
   startTime: string;
   endTime: string;
   customerName: string;
-  customerPhone: string;
+  customerPhoneNumber: string;
   customerEmail: string | null;
-  campaignCode: string | null;
   notes: string | null;
 };
 
@@ -218,14 +219,11 @@ function BookingSuccessPanel({
             {summaryRow("Hizmet", summary.serviceName)}
             {summaryRow("Uzman", summary.employeeName)}
             {summaryRow("Ad soyad", summary.customerName)}
-            {summaryRow("Telefon", summary.customerPhone)}
+            {summaryRow("Telefon", summary.customerPhoneNumber)}
             {summary.customerEmail
               ? summaryRow("E-posta", summary.customerEmail, {
                   breakAll: true,
                 })
-              : null}
-            {summary.campaignCode
-              ? summaryRow("Kampanya kodu", summary.campaignCode)
               : null}
             {summary.notes
               ? summaryRow("Not", summary.notes, { breakAll: true })
@@ -285,9 +283,9 @@ export function BookingForm({ company }: { company: CompanyResponse }) {
   );
 
   const [customerName, setCustomerName] = React.useState("");
-  const [customerPhone, setCustomerPhone] = React.useState("");
+  const [customerPhoneNational, setCustomerPhoneNational] =
+    React.useState("");
   const [customerEmail, setCustomerEmail] = React.useState("");
-  const [campaignCode, setCampaignCode] = React.useState("");
   const [notes, setNotes] = React.useState("");
 
   const [submitting, setSubmitting] = React.useState(false);
@@ -425,9 +423,15 @@ export function BookingForm({ company }: { company: CompanyResponse }) {
       return;
     }
     const name = customerName.trim();
-    const phone = customerPhone.trim();
-    if (!name || !phone) {
+    const phone = buildTrCustomerPhone(customerPhoneNational);
+    if (!name || !customerPhoneNational.trim()) {
       toast.error("Ad soyad ve telefon zorunludur.");
+      return;
+    }
+    if (!isValidTrMobileE164(phone)) {
+      toast.error(
+        "Geçerli bir Türkiye cep telefonu girin (+90 ile 10 hane, örn. 5XX XXX XX XX).",
+      );
       return;
     }
 
@@ -442,7 +446,6 @@ export function BookingForm({ company }: { company: CompanyResponse }) {
         customerPhoneNumber: phone,
         customerEmail: emailTrim.length > 0 ? emailTrim : null,
         startTime: selectedSlot.startTime,
-        campaignCode: campaignCode.trim() || null,
         notes: notes.trim() || null,
       };
 
@@ -465,9 +468,8 @@ export function BookingForm({ company }: { company: CompanyResponse }) {
         startTime: selectedSlot.startTime,
         endTime: selectedSlot.endTime,
         customerName: name,
-        customerPhone: phone,
+        customerPhoneNumber: phone,
         customerEmail: emailTrim.length > 0 ? emailTrim : null,
-        campaignCode: campaignCode.trim() || null,
         notes: notes.trim() || null,
       };
 
@@ -475,9 +477,8 @@ export function BookingForm({ company }: { company: CompanyResponse }) {
       setSuccessSummary(summary);
       setStep(1);
       setCustomerName("");
-      setCustomerPhone("");
+      setCustomerPhoneNational("");
       setCustomerEmail("");
-      setCampaignCode("");
       setNotes("");
       setSelectedSlot(null);
       setEmployeeId("");
@@ -604,14 +605,12 @@ export function BookingForm({ company }: { company: CompanyResponse }) {
             {step === 3 && (
               <StepContact
                 customerName={customerName}
-                customerPhone={customerPhone}
+                customerPhoneNational={customerPhoneNational}
                 customerEmail={customerEmail}
-                campaignCode={campaignCode}
                 notes={notes}
                 onCustomerNameChange={setCustomerName}
-                onCustomerPhoneChange={setCustomerPhone}
+                onCustomerPhoneNationalChange={setCustomerPhoneNational}
                 onCustomerEmailChange={setCustomerEmail}
-                onCampaignCodeChange={setCampaignCode}
                 onNotesChange={setNotes}
               />
             )}
