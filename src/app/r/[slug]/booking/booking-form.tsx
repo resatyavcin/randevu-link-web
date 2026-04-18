@@ -10,6 +10,8 @@ import {
   CircleCheck,
   ListX,
   Loader2Icon,
+  MapPin,
+  Phone,
   UsersRound,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -533,19 +535,39 @@ export function BookingForm({ company }: { company: CompanyResponse }) {
               />
             </div>
           </div>
-          <CardHeader className="items-stretch space-y-2 border-0 px-4 pt-3 text-left">
-            <div className="w-full space-y-2">
-              <CardTitle className="text-xl">{company.name}</CardTitle>
-              <CardDescription>
-                {company.description ??
-                  "Adımları takip ederek randevunuzu oluşturun."}
-              </CardDescription>
+          <CardHeader className="items-stretch border-0 px-4 pt-3 pb-0 text-left">
+            <div className="w-full">
+              <CardTitle className="text-xl leading-tight">
+                {company.name}
+              </CardTitle>
+              <p className="mt-0.5 text-sm text-muted-foreground/70">
+                @{company.slug}
+              </p>
+              {company.description ? (
+                <CardDescription className="mt-2 text-sm leading-relaxed">
+                  {company.description}
+                </CardDescription>
+              ) : null}
               {(company.phone ?? company.address) ? (
-                <div className="text-muted-foreground text-xs leading-relaxed">
-                  {company.phone ? <p>Tel: {company.phone}</p> : null}
-                  {company.address ? <p>{company.address}</p> : null}
+                <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
+                  {company.phone ? (
+                    <a
+                      href={`tel:${company.phone}`}
+                      className="flex items-center gap-1.5 hover:text-foreground transition-colors"
+                    >
+                      <Phone className="size-3 shrink-0" aria-hidden />
+                      {company.phone}
+                    </a>
+                  ) : null}
+                  {company.address ? (
+                    <span className="flex items-center gap-1.5">
+                      <MapPin className="size-3 shrink-0" aria-hidden />
+                      {company.address}
+                    </span>
+                  ) : null}
                 </div>
               ) : null}
+              <div className="mt-4" />
             </div>
           </CardHeader>
         </>
