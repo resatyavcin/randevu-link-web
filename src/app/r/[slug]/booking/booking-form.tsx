@@ -51,12 +51,24 @@ import { StepDateTime } from "@/app/r/[slug]/booking/step-datetime";
 import { StepEmployeeService } from "@/app/r/[slug]/booking/step-employee-service";
 import { StepProgress } from "@/app/r/[slug]/booking/step-progress";
 
+/** Aynı görsel URL’si kalsa bile tarayıcı önbelleğini kırar. Sorgulu URL’lere ekleme yapmıyoruz (imzalı adresler bozulmasın). */
+function withImageCacheBust(url: string, version: string | null): string {
+  const v = version?.trim();
+  if (!v) return url;
+  const u = url.trim();
+  if (!u || u.startsWith("data:") || u.startsWith("blob:")) return u;
+  if (u.includes("?")) return u;
+  return `${u}?v=${encodeURIComponent(v)}`;
+}
+
 function CompanyCardHeaderBanner({
   headerImgUrl,
   companyName,
+  imageVersion,
 }: {
   headerImgUrl: string | null;
   companyName: string;
+  imageVersion: string | null;
 }) {
   const [broken, setBroken] = React.useState(false);
   const src = headerImgUrl?.trim() ?? "";
@@ -66,7 +78,7 @@ function CompanyCardHeaderBanner({
     <div className="relative isolate h-32 w-full shrink-0 overflow-hidden">
       {showImg ? (
         <img
-          src={src}
+          src={withImageCacheBust(src, imageVersion)}
           alt={`${companyName} kapak görseli`}
           className="size-full object-cover"
           onError={() => setBroken(true)}
@@ -102,10 +114,12 @@ function CompanyCardHeaderBanner({
 function CompanyBookingLogo({
   logoUrl,
   companyName,
+  imageVersion,
   className,
 }: {
   logoUrl: string | null;
   companyName: string;
+  imageVersion: string | null;
   className?: string;
 }) {
   const [broken, setBroken] = React.useState(false);
@@ -122,7 +136,7 @@ function CompanyBookingLogo({
     >
       {showImg ? (
         <img
-          src={src}
+          src={withImageCacheBust(src, imageVersion)}
           alt={`${companyName} logosu`}
           className="size-full object-cover"
           onError={() => setBroken(true)}
@@ -508,11 +522,13 @@ export function BookingForm({ company }: { company: CompanyResponse }) {
             <CompanyCardHeaderBanner
               headerImgUrl={company.headerImgUrl}
               companyName={company.name}
+              imageVersion={company.updatedAt}
             />
             <div className="relative z-10 -mt-9 flex w-full justify-start px-4">
               <CompanyBookingLogo
                 logoUrl={company.logoUrl}
                 companyName={company.name}
+                imageVersion={company.updatedAt}
                 className="ring-4 ring-card shadow-md"
               />
             </div>

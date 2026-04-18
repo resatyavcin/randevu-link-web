@@ -9,6 +9,8 @@ export type CompanyResponse = {
   timezone: string | null;
   logoUrl: string | null;
   headerImgUrl: string | null;
+  /** Sunucudan gelirse görseller için tarayıcı önbelleğini kırar (aynı logo URL’si). */
+  updatedAt: string | null;
   active: boolean;
 };
 
@@ -54,6 +56,7 @@ export function companyFromApiData(raw: CompanyApiData): CompanyResponse {
       raw.headerImg ??
       raw.headerImageUrl ??
       null,
+    updatedAt: raw.updatedAt ?? null,
     active: raw.active,
   };
 }
