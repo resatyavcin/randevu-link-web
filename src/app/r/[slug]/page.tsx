@@ -20,7 +20,7 @@ async function fetchCompanyBySlug(slug: string): Promise<CompanyResponse | null>
     const json = (await res.json()) as CompanyApiEnvelope;
     if (!json.success || json.data == null) return null;
     const company = companyFromApiData(json.data);
-    return company.active ? company : null;
+    return company;
   } catch {
     return null;
   }

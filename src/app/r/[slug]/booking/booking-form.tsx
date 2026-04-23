@@ -16,11 +16,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-import {
-  Alert,
-  AlertDescription,
-  AlertTitle,
-} from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -299,8 +295,7 @@ export function BookingForm({ company }: { company: CompanyResponse }) {
   );
 
   const [customerName, setCustomerName] = React.useState("");
-  const [customerPhoneNational, setCustomerPhoneNational] =
-    React.useState("");
+  const [customerPhoneNational, setCustomerPhoneNational] = React.useState("");
   const [customerEmail, setCustomerEmail] = React.useState("");
   const [notes, setNotes] = React.useState("");
 
@@ -314,6 +309,13 @@ export function BookingForm({ company }: { company: CompanyResponse }) {
   }, [successSummary]);
 
   React.useEffect(() => {
+    if (!company.active) {
+      setEmployees([]);
+      setServices([]);
+      setLoadingCatalog(false);
+      return;
+    }
+
     let cancelled = false;
     (async () => {
       setLoadingCatalog(true);
@@ -343,7 +345,7 @@ export function BookingForm({ company }: { company: CompanyResponse }) {
     return () => {
       cancelled = true;
     };
-  }, [company.id]);
+  }, [company.active, company.id]);
 
   const selectedEmployee = employees.find((e) => e.id === employeeId);
   const selectedService = services.find((s) => s.id === serviceId);
@@ -515,6 +517,7 @@ export function BookingForm({ company }: { company: CompanyResponse }) {
   }
 
   const showSuccess = successSummary != null;
+  const isCompanyInactive = !company.active;
 
   return (
     <Card className="gap-0 overflow-hidden p-0">
@@ -575,7 +578,14 @@ export function BookingForm({ company }: { company: CompanyResponse }) {
       <CardContent
         className={cn("px-4 pb-6", showSuccess ? "pt-8 sm:pt-10" : "pt-2")}
       >
-        {loadingCatalog ? (
+        {isCompanyInactive ? (
+          <Alert variant="warning" role="status" aria-live="polite">
+            <AlertTitle className="text-center">😔 Çalışma saatleri dışında</AlertTitle>
+            <AlertDescription className="text-center">
+              Şu anda çalışma saatleri dışında olduğu için randevu alınamıyor.
+            </AlertDescription>
+          </Alert>
+        ) : loadingCatalog ? (
           <div className="flex items-center gap-2 text-muted-foreground text-sm">
             <Loader2Icon className="size-4 animate-spin" />
             Yükleniyor…
