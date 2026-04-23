@@ -300,6 +300,7 @@ export function BookingForm({ company }: { company: CompanyResponse }) {
   const [notes, setNotes] = React.useState("");
 
   const [submitting, setSubmitting] = React.useState(false);
+  const [validatingSelection, setValidatingSelection] = React.useState(false);
   const [successSummary, setSuccessSummary] =
     React.useState<BookingSuccessSummary | null>(null);
 
@@ -328,7 +329,7 @@ export function BookingForm({ company }: { company: CompanyResponse }) {
         if (!svcRes.ok) throw new Error(await readErrorMessage(svcRes));
         const empJson = unwrapApiList<unknown>(await empRes.json())
           .map(normalizeEmployee)
-          .filter((e): e is EmployeeResponse => e != null && e.active);
+          .filter((e): e is EmployeeResponse => e != null);
         const svcJson = unwrapApiList<unknown>(await svcRes.json())
           .map(normalizeService)
           .filter((s): s is ServiceResponse => s != null && s.active);
@@ -404,7 +405,74 @@ export function BookingForm({ company }: { company: CompanyResponse }) {
     };
   }, [company.id, employeeId, serviceId, date, selectedService]);
 
-  function goNext() {
+  async function validateSelectionWithFreshData(): Promise<{
+    employee: EmployeeResponse;
+    service: ServiceResponse;
+  } | null> {
+    try {
+      const [empRes, svcRes] = await Promise.all([
+        fetch(`${API}/companies/${company.id}/employees`, {
+          cache: "no-store",
+        }),
+        fetch(`${API}/companies/${company.id}/services`, {
+          cache: "no-store",
+        }),
+      ]);
+      if (!empRes.ok) throw new Error(await readErrorMessage(empRes));
+      if (!svcRes.ok) throw new Error(await readErrorMessage(svcRes));
+
+      const latestEmployees = unwrapApiList<unknown>(await empRes.json())
+        .map(normalizeEmployee)
+        .filter((e): e is EmployeeResponse => e != null);
+      const latestServices = unwrapApiList<unknown>(await svcRes.json())
+        .map(normalizeService)
+        .filter((s): s is ServiceResponse => s != null && s.active);
+
+      setEmployees(latestEmployees);
+      setServices(latestServices);
+
+      const latestEmployee = latestEmployees.find((e) => e.id === employeeId);
+      if (!latestEmployee) {
+        toast.error("Seçtiğiniz çalışan artık listede yok.");
+        setEmployeeId("");
+        setServiceId("");
+        setStep(1);
+        return null;
+      }
+      if (!latestEmployee.active) {
+        toast.error("Seçtiğiniz çalışan şu anda müsait değil.");
+        setEmployeeId("");
+        setServiceId("");
+        setStep(1);
+        return null;
+      }
+
+      const latestService = latestServices.find((s) => s.id === serviceId);
+      if (!latestService) {
+        toast.error("Seçtiğiniz hizmet artık aktif değil.");
+        setServiceId("");
+        setStep(1);
+        return null;
+      }
+
+      const assignedIds = latestEmployee.serviceIds;
+      if (assignedIds.length > 0 && !assignedIds.includes(latestService.id)) {
+        toast.error("Bu hizmet artık seçtiğiniz çalışana atanmış değil.");
+        setServiceId("");
+        setStep(1);
+        return null;
+      }
+
+      return { employee: latestEmployee, service: latestService };
+    } catch (e) {
+      toast.error(
+        e instanceof Error ? e.message : "Seçimler doğrulanırken hata oluştu.",
+      );
+      return null;
+    }
+  }
+
+  async function goNext() {
     if (step === 1) {
       if (!employeeId || !serviceId) {
         toast.error("Çalışan ve hizmet seçin.");
@@ -414,6 +482,10 @@ export function BookingForm({ company }: { company: CompanyResponse }) {
         toast.error("Bu çalışana atanmış hizmet yok.");
         return;
       }
+      setValidatingSelection(true);
+      const validSelection = await validateSelectionWithFreshData();
+      setValidatingSelection(false);
+      if (!validSelection) return;
       setStep(2);
       return;
     }
@@ -455,6 +527,12 @@ export function BookingForm({ company }: { company: CompanyResponse }) {
 
     setSubmitting(true);
     try {
+      const validSelection = await validateSelectionWithFreshData();
+      if (!validSelection) {
+        setSubmitting(false);
+        return;
+      }
+
       const emailTrim = customerEmail.trim();
       const body = {
         companyId: company.id,
@@ -475,14 +553,10 @@ export function BookingForm({ company }: { company: CompanyResponse }) {
 
       if (!res.ok) throw new Error(await readErrorMessage(res));
 
-      if (!selectedEmployee) {
-        throw new Error("Çalışan bilgisi bulunamadı.");
-      }
-
       const summary: BookingSuccessSummary = {
-        serviceName: selectedService.name,
+        serviceName: validSelection.service.name,
         employeeName:
-          `${selectedEmployee.firstName} ${selectedEmployee.lastName}`.trim(),
+          `${validSelection.employee.firstName} ${validSelection.employee.lastName}`.trim(),
         startTime: selectedSlot.startTime,
         endTime: selectedSlot.endTime,
         customerName: name,
@@ -695,12 +769,22 @@ export function BookingForm({ company }: { company: CompanyResponse }) {
                   )}
                   onClick={goNext}
                   disabled={
-                    step === 1 &&
-                    (employees.length === 0 || services.length === 0)
+                    validatingSelection ||
+                    (step === 1 &&
+                      (employees.length === 0 || services.length === 0))
                   }
                 >
-                  İleri
-                  <ChevronRight className="size-4" />
+                  {validatingSelection ? (
+                    <>
+                      <Loader2Icon className="size-4 animate-spin" />
+                      Kontrol ediliyor…
+                    </>
+                  ) : (
+                    <>
+                      İleri
+                      <ChevronRight className="size-4" />
+                    </>
+                  )}
                 </Button>
               ) : (
                 <Button

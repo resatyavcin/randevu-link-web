@@ -51,8 +51,9 @@ export function StepEmployeeService({
         >
           <option value="">Seçiniz</option>
           {employees.map((emp) => (
-            <option key={emp.id} value={emp.id}>
+            <option key={emp.id} value={emp.id} disabled={!emp.active}>
               {employeeLabel(emp)}
+              {!emp.active ? " (Müsait değil)" : ""}
             </option>
           ))}
         </select>
