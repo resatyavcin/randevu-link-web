@@ -472,6 +472,47 @@ export function BookingForm({ company }: { company: CompanyResponse }) {
     }
   }
 
+  async function validateSelectedSlotWithFreshData(
+    service: ServiceResponse,
+  ): Promise<AvailableSlot | null> {
+    if (!date || !selectedSlot || !employeeId) return null;
+    const dateStr = format(date, "yyyy-MM-dd");
+
+    try {
+      const url = `${API}/companies/${company.id}/employees/${employeeId}/available-slots?date=${encodeURIComponent(dateStr)}&durationMinutes=${service.durationMinutes}`;
+      const res = await fetch(url, { cache: "no-store" });
+      if (!res.ok) throw new Error(await readErrorMessage(res));
+
+      const latestSlots = unwrapApiList<AvailableSlot>(await res.json());
+      setSlots(latestSlots);
+
+      const freshSelected = latestSlots.find(
+        (slot) => slot.startTime === selectedSlot.startTime,
+      );
+      if (!freshSelected) {
+        setSelectedSlot(null);
+        setStep(2);
+        toast.error("Seçtiğiniz saat artık mevcut değil. Lütfen yeniden seçin.");
+        return null;
+      }
+      if (!freshSelected.selectable) {
+        setSelectedSlot(null);
+        setStep(2);
+        toast.error(
+          freshSelected.reason?.trim() ||
+            "Seçtiğiniz saat artık müsait değil. Lütfen başka bir saat seçin.",
+        );
+        return null;
+      }
+      return freshSelected;
+    } catch (e) {
+      toast.error(
+        e instanceof Error ? e.message : "Saat doğrulaması sırasında hata oluştu.",
+      );
+      return null;
+    }
+  }
+
   async function goNext() {
     if (step === 1) {
       if (!employeeId || !serviceId) {
@@ -498,6 +539,17 @@ export function BookingForm({ company }: { company: CompanyResponse }) {
         toast.error("Bir saat seçin.");
         return;
       }
+      setValidatingSelection(true);
+      const validSelection = await validateSelectionWithFreshData();
+      if (!validSelection) {
+        setValidatingSelection(false);
+        return;
+      }
+      const freshSlot = await validateSelectedSlotWithFreshData(
+        validSelection.service,
+      );
+      setValidatingSelection(false);
+      if (!freshSlot) return;
       setStep(3);
     }
   }
@@ -532,6 +584,13 @@ export function BookingForm({ company }: { company: CompanyResponse }) {
         setSubmitting(false);
         return;
       }
+      const freshSlot = await validateSelectedSlotWithFreshData(
+        validSelection.service,
+      );
+      if (!freshSlot) {
+        setSubmitting(false);
+        return;
+      }
 
       const emailTrim = customerEmail.trim();
       const body = {
@@ -541,7 +600,7 @@ export function BookingForm({ company }: { company: CompanyResponse }) {
         customerName: name,
         customerPhoneNumber: phone,
         customerEmail: emailTrim.length > 0 ? emailTrim : null,
-        startTime: selectedSlot.startTime,
+        startTime: freshSlot.startTime,
         notes: notes.trim() || null,
       };
 
@@ -557,8 +616,8 @@ export function BookingForm({ company }: { company: CompanyResponse }) {
         serviceName: validSelection.service.name,
         employeeName:
           `${validSelection.employee.firstName} ${validSelection.employee.lastName}`.trim(),
-        startTime: selectedSlot.startTime,
-        endTime: selectedSlot.endTime,
+        startTime: freshSlot.startTime,
+        endTime: freshSlot.endTime,
         customerName: name,
         customerPhoneNumber: phone,
         customerEmail: emailTrim.length > 0 ? emailTrim : null,
